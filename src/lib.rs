@@ -28,6 +28,48 @@ pub struct Error {
     message: String,
 }
 
+impl Display for Request {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {}\n{:?}{}",
+            self.method,
+            self.uri,
+            self.version,
+            self.headers,
+            if !self.body.is_empty() {
+                format!(
+                    "\nBody:\n{}",
+                    String::from_utf8_lossy(&self.body)
+                )
+            } else {
+                String::new()
+            }
+        )
+    }
+}
+
+impl Display for Response {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} {}\n{}\n{:?}{}",
+            self.status_code,
+            self.reason_phrase,
+            self.status,
+            self.headers,
+            if !self.body.is_empty() {
+                format!(
+                    "\nBody:\n{}",
+                    String::from_utf8_lossy(&self.body)
+                )
+            } else {
+                String::new()
+            }
+        )
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "Error: {}", self.message)
