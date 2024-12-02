@@ -1,9 +1,9 @@
 use crate::{Request, Response};
 use bytes::Bytes;
-use http::StatusCode;
+use http::{HeaderMap, HeaderName, StatusCode};
 use rustls::{ClientConfig, RootCertStore};
-use std::collections::HashMap;
 use std::error::Error;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -11,11 +11,24 @@ use tokio::sync::Mutex;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 use url::Url;
+use http::header::CONTENT_LENGTH;
+use http::HeaderValue;
+
 
 #[derive(Clone)]
 pub struct Client {
     tls_config: Arc<ClientConfig>,
     tls_stream: Option<Arc<Mutex<TlsStream<TcpStream>>>>,
+}
+
+pub trait HeaderValueExt {
+    fn to_string(&self) -> String;
+}
+
+impl HeaderValueExt for HeaderValue {
+    fn to_string(&self) -> String {
+        self.to_str().unwrap_or_default().to_string()
+    }
 }
 
 impl Client {
@@ -36,7 +49,7 @@ impl Client {
         }
     }
 
-    pub async fn connect(&mut self, url: &Url) {
+    pub async fn connect(&mut self, url: Url) {
         let host = url.host_str().ok_or("Invalid host").unwrap().to_string();
         let port = match url.port() {
             Some(port) => port,
@@ -56,7 +69,7 @@ impl Client {
         request_str += &format!("Host: {}\r\n", url.host_str().unwrap_or(""));
 
         for (key, value) in &request.headers {
-            request_str += &format!("{}: {}\r\n", key, value.to_string());
+            request_str += &format!("{}: {:?}\r\n", key.as_str(), value);
         }
 
         if !request.body.is_empty() {
@@ -108,17 +121,19 @@ impl Client {
         let status = StatusCode::from_u16(status_code)?;
         let _reason_phrase = status_parts.next().unwrap_or("");
 
-        let mut headers_map: HashMap<String, String> = HashMap::new();
+        let mut headers_map = HeaderMap::new();
         for line in lines {
             if line.is_empty() {
                 break;
             }
             if let Some((key, value)) = line.split_once(": ") {
-                headers_map.insert(key.parse().unwrap(), value.parse().unwrap());
+                let header_name = HeaderName::from_str(key)?;
+                let header_value = HeaderValue::from_str(value)?;
+                headers_map.insert(header_name, header_value);
             }
         }
 
-        let content_length = if let Some(value) = headers_map.get("Content-Length") {
+        let content_length = if let Some(value) = headers_map.get(CONTENT_LENGTH) {
             Some(value.to_string().parse::<usize>()?)
         } else {
             None
