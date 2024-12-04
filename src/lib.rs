@@ -1,13 +1,13 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use http::HeaderMap;
+use http::{HeaderMap, Method};
 use url::Url;
 
 pub mod client;
 
 #[derive(Clone, Debug)]
 pub struct Request {
-    pub method: String,
+    pub method: Method,
     pub uri: Url,
     pub version: String,
     pub headers: HeaderMap,
@@ -26,6 +26,18 @@ pub struct Response {
 #[derive(Debug)]
 pub struct Error {
     message: String,
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        Self {
+            method: Default::default(),
+            uri: Url::parse("http://localhost").unwrap(),
+            version: "".to_string(),
+            headers: Default::default(),
+            body: vec![],
+        }
+    }
 }
 
 impl Display for Request {
